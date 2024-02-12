@@ -7,16 +7,18 @@ import os
 import apriltag
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
+from utils import ApriltagBoard
 
 # get image path from command line
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=False, help="folder path to the input image",
-                default="/home/zxw2600/Workspace_Disk/inertia_toolkit_ws/apriltag_calib_ws/img")
+ap.add_argument("-i", "--image", required=True,
+                help="folder path to the input image")
+ap.add_argument("-t", "--tag", required=True, help="tag config file")
 ap.add_argument("-o", "--output", required=False,
-                help="output file name", default="camera_calib.yaml")
+                help="output file name", default="config/camera_calib.yaml")
 folder_path = ap.parse_args().image
 yaml_file = ap.parse_args().output
-
+apriltag_config = ap.parse_args().tag
 # read all the image to a list
 image_files = os.listdir(folder_path)
 for file in image_files:
@@ -24,38 +26,29 @@ for file in image_files:
         image_files.remove(file)
 
 # images = []
+
+
 def load_img(file):
     image_path = os.path.join(folder_path, file)
     image = cv2.imread(image_path)
     if image is not None:
         return image
-        
+
+
 print("reading images...")
 with ProcessPoolExecutor() as executor:
-    images=list(tqdm(executor.map(load_img, image_files), total=len(image_files)))
-
+    images = list(
+        tqdm(executor.map(load_img, image_files), total=len(image_files)))
 
 
 # create apriltag board
 
 print("reading apriltag config...")
 
-class ApriltagBoard:
-    def __init__(self):
-        self.objPoints = {}
-        
-        pass
-    def read_yaml(self, file):
-        with open(file, 'r') as stream:
-            data = yaml.safe_load(stream)
-            for tag_id, tag_data in data.items():
-                center = np.array(tag_data['center'], np.float32)
-                corners = [np.array(c, np.float32)
-                           for c in tag_data['corners']]
-                self.objPoints[int(tag_id)] = corners
+board = ApriltagBoard()
+board.read_yaml(apriltag_config)
 
-
-options = apriltag.DetectorOptions(families='tag25h9',
+options = apriltag.DetectorOptions(families=board.tag_family,
                                    border=1,
                                    nthreads=4,
                                    quad_decimate=4,
@@ -69,15 +62,13 @@ options = apriltag.DetectorOptions(families='tag25h9',
 # detect apriltag in the image
 at_detector = apriltag.Detector(options)
 
-board = ApriltagBoard()
-board.read_yaml(
-    "/home/zxw2600/Workspace_Disk/inertia_toolkit_ws/apriltag_calib_ws/apriltag_board.yaml")
+
 
 board_points_show = {}
 
 offset = np.array([1, 1], np.float32)
 for index, corner in board.objPoints.items():
-    board_points_show[index] = [p[:2]*20000 +offset for p in corner]
+    board_points_show[index] = [p[:2]*20000 + offset for p in corner]
 
 img_size = images[0].shape[:2]
 
@@ -89,9 +80,9 @@ print("process img...")
 for img in tqdm(images):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     results = at_detector.detect(gray)
-    img_obj_points=[]
-    img_img_points=[]
-    
+    img_obj_points = []
+    img_img_points = []
+
     for result in results:
         index = result.tag_id
         for i in range(4):
@@ -100,7 +91,7 @@ for img in tqdm(images):
 
     obj_points.append(np.asarray(img_obj_points))
     img_points.append(np.asarray(img_img_points))
-    
+
     if vis:
         img_show = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         board_show = np.zeros_like(img_show)
