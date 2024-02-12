@@ -167,28 +167,64 @@ if test_cube:
     ax_cube = figure_cube.add_subplot(111, projection='3d')
 
     # Split tags into six planes according to pose and points
-    pose_group = [[], [], []]
+    pose_group = [[], [], [], [], [], []]
     pose_ref = [
         np.array([0, 0, 1, 1],),
         np.array([0, 1, 0, 1],),
         np.array([1, 0, 0, 1]),
     ]
     for pose, points in tags:
-        last_d = 100
+        min_d = 100
+        min_dd = 100
         min_index = 0
+
+        R = pose[:3, :3]
+
         for i in range(3):
-            pose_vec = pose@np.array([0, 0, 1, 1]).T
-            d = np.abs(1-np.abs(np.dot(pose_ref[i][:-1], pose_vec[:-1])))
-
-            print(f"{i} {d}")
-            if d < last_d:
-                last_d = d
+            ref_vec = pose_ref[i][:-1]
+            pose_vec: np.ndarray = R@np.array([0, 0, 1]).T
+            dd = np.dot(ref_vec, pose_vec)
+            d = np.abs(1-np.abs(dd))
+            if d < 0:
+                pose_vec = -pose_vec
+            # print(f"{i} {d}")
+            if d < min_d:
+                min_d = d
+                min_dd = dd
                 min_index = i
-        pose_group[min_index].append((pose, points, pose_ref[i][:-1]))
-        
+        if min_dd < 0:
+            pose_group[min_index].append((pose, points, pose_ref[min_index][:-1]))
+        else:
+            pose_group[min_index+3].append((pose, points, pose_ref[min_index][:-1]))
+group_vec = []
 for group_id, group in enumerate(pose_group):
+    avr_vec = []
+    print("_group start_______")
     for pose, points, ref_vec in group:
+        R = pose[:3, :3]
+        pose_vec: np.ndarray = R@np.array([0, 0, 1]).T
+        d = np.dot(ref_vec, pose_vec)
+        if d < 0:
+            pose_vec = -pose_vec
+
+        print(f"vec {pose_vec.round(2)} {d:2f}")
         draw_tag(ax_cube, pose, tag_size, group_id)
-
-
+        avr_vec.append(pose_vec)
+    group_vec.append(np.mean(avr_vec, axis=0))
+near_angles=[]
+opsite_angles=[]
+for i in range(len(group_vec)):
+    for j in range(i+1, len(group_vec)):
+        # print(f"{i} {j} {np.dot(group_vec[i], group_vec[j])}")
+        rad = np.arccos(np.dot(group_vec[i], group_vec[j]))
+        if j-i == 3:
+            opsite_angles.append(rad*180.0/np.pi)
+        else:
+            near_angles.append(rad*180.0/np.pi)
+print(f"near angles {near_angles}")
+print(f"opsite angles {opsite_angles}")
+oppsite_error=np.abs(np.array(opsite_angles)-0.0)
+near_error=np.abs(np.array(near_angles)-90.0)
+print("max error ", max(oppsite_error.max(),near_error.max()))
+print(f"avr error", np.mean(np.concatenate((oppsite_error,near_error))))
 plt.show()
