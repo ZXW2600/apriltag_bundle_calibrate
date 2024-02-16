@@ -46,6 +46,20 @@ def draw_3dpoints(ax, points: np.ndarray, size: float = 0.01, line_width=2, colo
         Line3DCollection(lines, facecolors=color, linewidths=line_width, edgecolors=color, alpha=0.35))
 
 
+def draw_frame(ax, pose: np.ndarray, size: float = 0.01, line_width=2, color: str = 'g'):
+    points = size*np.array([[0, 0, 1, 1], [0, 0, -1, 1],
+                            [0, 1, 0, 1], [0, -1, 0, 1],
+                            [1, 0, 0, 1], [-1, 0, 0, 1]]).T
+    points = (pose@points).T[:,:3]
+    lines = []
+    for i in range(3):
+        lines.append(
+            (points[i*2], points[i*2+1])
+        )
+    ax.add_collection3d(
+        Line3DCollection(lines, facecolors=color, linewidths=line_width, edgecolors=color, alpha=0.35))
+
+
 tag_color_dict = {
     0: (1, 0, 0),
     1: (0, 1, 0),
@@ -55,10 +69,11 @@ tag_color_dict = {
     5: (0, 1, 1)
 }
 
-vis_camera = False
+vis_camera = True
 vis_master_tag = True
 vis_aid_tag = False
 vis_points = True
+
 test_plane = False
 test_cube = False
 
@@ -114,22 +129,30 @@ with open(file_path, 'r') as stream:
         data = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
+    tag_data = data["tag_pose"]
+    camera_data = data["camera_pose"]
+    bundle_data = data["bundle_pose"]
 
-    for tag in data:
+    # if vis_master_tag
+    for tag in tag_data:
         chr = tag[0]
         index = int(tag[1:])
-        pose = np.array(data[tag])
+        pose = np.array(tag_data[tag])
         if chr == 't' and vis_master_tag:
             points = draw_tag(ax, pose, tag_size, index)
             tags.append((pose, points))
-        elif chr == 'x' and vis_camera:
-            draw_camera(ax, pose, 0.05, 0.2)
-        elif chr == 'a' and vis_aid_tag:
-            draw_tag(ax, pose, tag_size, index)
-        elif chr == 'p' and vis_points:
-            pose.reshape(3)
-            draw_3dpoints(ax, pose)
-            points.append(pose)
+
+    for camera in camera_data:
+        chr = camera[:7]
+        index = int(camera[7:])
+        pose = np.array(camera_data[camera])
+        draw_camera(ax, pose,0.05,0.1)
+
+    for bundle in bundle_data:
+        chr = bundle[:7]
+        index = int(bundle[7:])
+        pose = np.array(bundle_data[bundle])
+        draw_frame(ax, pose)
 
 if test_plane:
     # fit plane
@@ -193,9 +216,11 @@ if test_cube:
                 min_dd = dd
                 min_index = i
         if min_dd < 0:
-            pose_group[min_index].append((pose, points, pose_ref[min_index][:-1]))
+            pose_group[min_index].append(
+                (pose, points, pose_ref[min_index][:-1]))
         else:
-            pose_group[min_index+3].append((pose, points, pose_ref[min_index][:-1]))
+            pose_group[min_index +
+                       3].append((pose, points, pose_ref[min_index][:-1]))
     group_vec = []
     for group_id, group in enumerate(pose_group):
         avr_vec = []
@@ -211,8 +236,8 @@ if test_cube:
             draw_tag(ax_cube, pose, tag_size, group_id)
             avr_vec.append(pose_vec)
         group_vec.append(np.mean(avr_vec, axis=0))
-    near_angles=[]
-    opsite_angles=[]
+    near_angles = []
+    opsite_angles = []
     for i in range(len(group_vec)):
         for j in range(i+1, len(group_vec)):
             # print(f"{i} {j} {np.dot(group_vec[i], group_vec[j])}")
@@ -223,8 +248,8 @@ if test_cube:
                 near_angles.append(rad*180.0/np.pi)
     print(f"near angles {near_angles}")
     print(f"opsite angles {opsite_angles}")
-    oppsite_error=np.abs(np.array(opsite_angles)-0.0)
-    near_error=np.abs(np.array(near_angles)-90.0)
-    print("max error ", max(oppsite_error.max(),near_error.max()))
-    print(f"avr error", np.mean(np.concatenate((oppsite_error,near_error))))
+    oppsite_error = np.abs(np.array(opsite_angles)-0.0)
+    near_error = np.abs(np.array(near_angles)-90.0)
+    print("max error ", max(oppsite_error.max(), near_error.max()))
+    print(f"avr error", np.mean(np.concatenate((oppsite_error, near_error))))
 plt.show()
