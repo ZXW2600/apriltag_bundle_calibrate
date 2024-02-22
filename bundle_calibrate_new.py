@@ -355,13 +355,13 @@ class BundleCalibratePoseGraph(PoseGraph):
             gtsam.noiseModel.mEstimator.Huber.Create(0.1),
             # Adjust these values as needed
             gtsam.noiseModel.Diagonal.Sigmas(
-                np.array([2, 2,]))
+                np.array([2, 2, 2, 2, 2, 2, 2, 2,]))
         )
         aid_tag_noise = gtsam.noiseModel.Robust.Create(
             gtsam.noiseModel.mEstimator.Huber.Create(0.1),
             # Adjust these values as needed
             gtsam.noiseModel.Diagonal.Sigmas(
-                np.array([1, 1,]))
+                np.array([1, 1, 1, 1, 1, 1, 1, 1,]))
         )
         self.tag_noise = {
             KeyType.MASTER_TAG: master_tag_noise,
@@ -377,7 +377,7 @@ class BundleCalibratePoseGraph(PoseGraph):
             self.initial_estimate.insert(tag_pose_key, gtsam.Pose3())
 
         self.graph.push_back(
-            custom_factor.BundleTagFactors(
+            custom_factor.BundleTagFactor(
                 corners, self.k, tag_size, camera_key, tag_pose_key, bundle_key, self.tag_noise[
                     tag_type]
             )

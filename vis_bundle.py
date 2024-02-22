@@ -46,6 +46,26 @@ def draw_3dpoints(ax, points: np.ndarray, size: float = 0.01, line_width=2, colo
         Line3DCollection(lines, facecolors=color, linewidths=line_width, edgecolors=color, alpha=0.35))
 
 
+def draw_axes(ax, pose, size: float = 0.1, line_width=2):
+    axes_T_end_points = [
+        np.array([size, 0, 0, 1]),
+        np.array([-size, 0, 0, 1]),
+        np.array([0, size, 0, 1]),
+        np.array([0, -size, 0, 1]),
+        np.array([0, 0, size, 1]),
+        np.array([0, 0, -size, 1]),
+    ]
+    world_T_end_points = (pose@np.array(axes_T_end_points).T).T
+    print(world_T_end_points)
+    color = ["r", "g", "b"]
+    for i in range(0, 3, 1):
+        start = world_T_end_points[i*2, :3]
+        end = world_T_end_points[i*2+1, :3]
+        print(start, end)
+        ax.add_collection3d(
+            Line3DCollection([[start, end]], facecolors=color, linewidths=line_width, edgecolors=color[i], alpha=0.35))
+
+
 tag_color_dict = {
     0: (1, 0, 0),
     1: (0, 1, 0),
@@ -55,12 +75,12 @@ tag_color_dict = {
     5: (0, 1, 1)
 }
 
-vis_camera = False
+vis_camera = True
 vis_master_tag = True
 vis_aid_tag = False
 vis_points = True
 test_plane = False
-test_cube = False
+test_cube = True
 
 if test_plane:
     vis_points = True
@@ -94,7 +114,8 @@ def draw_tag(ax, pose, tag_size, tag_id, color='r'):
 
 
 figure = plt.figure()
-ax = figure.add_subplot(111, projection='3d')
+ax = figure.add_subplot(121, projection='3d')
+ax_tag = figure.add_subplot(122, projection='3d')
 # ax.set_box_aspect([1, 1, 1])
 
 
@@ -120,16 +141,18 @@ with open(file_path, 'r') as stream:
         index = int(tag[1:])
         pose = np.array(data[tag])
         if chr == 't' and vis_master_tag:
-            points = draw_tag(ax, pose, tag_size, index)
+            points = draw_tag(ax_tag, pose, tag_size, index)
             tags.append((pose, points))
         elif chr == 'x' and vis_camera:
             draw_camera(ax, pose, 0.05, 0.2)
         elif chr == 'a' and vis_aid_tag:
-            draw_tag(ax, pose, tag_size, index)
+            draw_tag(ax_tag, pose, tag_size, index)
         elif chr == 'p' and vis_points:
             pose.reshape(3)
             draw_3dpoints(ax, pose)
             points.append(pose)
+        elif chr == "b":
+            draw_axes(ax, pose, 0.1)
 
 if test_plane:
     # fit plane
@@ -193,9 +216,11 @@ if test_cube:
                 min_dd = dd
                 min_index = i
         if min_dd < 0:
-            pose_group[min_index].append((pose, points, pose_ref[min_index][:-1]))
+            pose_group[min_index].append(
+                (pose, points, pose_ref[min_index][:-1]))
         else:
-            pose_group[min_index+3].append((pose, points, pose_ref[min_index][:-1]))
+            pose_group[min_index +
+                       3].append((pose, points, pose_ref[min_index][:-1]))
     group_vec = []
     for group_id, group in enumerate(pose_group):
         avr_vec = []
@@ -211,8 +236,8 @@ if test_cube:
             draw_tag(ax_cube, pose, tag_size, group_id)
             avr_vec.append(pose_vec)
         group_vec.append(np.mean(avr_vec, axis=0))
-    near_angles=[]
-    opsite_angles=[]
+    near_angles = []
+    opsite_angles = []
     for i in range(len(group_vec)):
         for j in range(i+1, len(group_vec)):
             # print(f"{i} {j} {np.dot(group_vec[i], group_vec[j])}")
@@ -223,8 +248,18 @@ if test_cube:
                 near_angles.append(rad*180.0/np.pi)
     print(f"near angles {near_angles}")
     print(f"opsite angles {opsite_angles}")
-    oppsite_error=np.abs(np.array(opsite_angles)-0.0)
-    near_error=np.abs(np.array(near_angles)-90.0)
-    print("max error ", max(oppsite_error.max(),near_error.max()))
-    print(f"avr error", np.mean(np.concatenate((oppsite_error,near_error))))
+    oppsite_error = np.abs(np.array(opsite_angles)-0.0)
+    near_error = np.abs(np.array(near_angles)-90.0)
+    print("max error ", max(oppsite_error.max(), near_error.max()))
+    print(f"avr error", np.mean(np.concatenate((oppsite_error, near_error))))
+    
+    
+    
+    
+# Set the axes to be tight to maximize the plot area
+plt.axis('tight')
+
+# Remove padding and margin
+plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
+
 plt.show()

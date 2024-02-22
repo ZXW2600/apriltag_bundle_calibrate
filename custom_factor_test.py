@@ -1,4 +1,5 @@
 
+import custom_factor
 import gtsam
 import numpy as np
 from custom_factor import BundlePoseFactor, BundleTagFactor
@@ -13,12 +14,15 @@ def random_pose():
 
 
 tag_pose_list = [
-    gtsam.Pose3(random_rot(), np.array([5, 5, 8])),
-    gtsam.Pose3(random_rot(), np.array([2, 5, 1])),
-    gtsam.Pose3(random_rot(), np.array([2, 6, 1])),
-    gtsam.Pose3(random_rot(), np.array([5, 6, 5])),
-    gtsam.Pose3(random_rot(), np.array([5, 6, 5])),
+    random_pose() for i in range(100)
 ]
+
+world_T_camera_pose = gtsam.Pose3(random_rot(), np.array([0, 0, 0]))
+
+camera_T_tag_pose_list = [
+    world_T_camera_pose.between(tag_pose)
+    for tag_pose in tag_pose_list]
+
 
 # add noise  to tag pose
 tag_pose_noise_list = []
@@ -46,10 +50,12 @@ def test_tag_bundle_factor():
     for tag_pose in tag_pose_list:
         world_T_tag_points_list.append(
             [tag_pose.transformFrom(pt) for pt in tag_T_obj_pts])
-
-        uv_list.append([camera.project(pt)
-                       for pt in world_T_tag_points_list[-1]])
-
+        try:
+            uv_list.append([camera.project(pt)
+                        for pt in world_T_tag_points_list[-1]])
+        except:
+            pass
+        
     graph = gtsam.NonlinearFactorGraph()
     init_values = gtsam.Values()
 
@@ -64,7 +70,7 @@ def test_tag_bundle_factor():
         init_values.insert(tag_key, tag_pose_noise_list[i])
         graph.push_back(BundleTagFactor(tag_uv, K, tag_size, camera_key,
                         tag_key, bundle_key, gtsam.noiseModel.Isotropic.Sigma(8, 0.1)))
-
+        graph.add
         if i == 0:
             graph.push_back(gtsam.PriorFactorPose3(
                 tag_key, gtsam.Pose3(), gtsam.noiseModel.Constrained.All(6)))
@@ -132,5 +138,118 @@ def test_bundle_pose_factor():
         print(np.linalg.norm(bundle_T_tag_pose.between(
             result.atPose3(gtsam.symbol('t', i))).translation()))
 
+
+def test_pnp_factor():
+
+    graph = gtsam.NonlinearFactorGraph()
+    init_values = gtsam.Values()
+
+    bundle_key = gtsam.symbol('b', 0)
+
+    camera_key = gtsam.symbol('c', 0)
+    init_values.insert(camera_key, gtsam.Pose3())
+
+    tag_noise = gtsam.noiseModel.Robust.Create(
+        gtsam.noiseModel.mEstimator.Huber.Create(1),
+        # Adjust these values as needed
+        gtsam.noiseModel.Diagonal.Sigmas(
+            np.array([0.1, 0.1, 0.1, 0.2, 0.2, 0.2]))
+    )
+
+    for i, tag_pose in enumerate(camera_T_tag_pose_list):
+        tag_key = gtsam.symbol('t', i)
+        graph.push_back(
+            custom_factor.BundleCameraPnPFactor(
+                bundle_key, tag_key, camera_key, tag_pose, tag_noise
+            )
+        )
+        init_values.insert(tag_key, gtsam.Pose3())
+        if i == 0:
+            graph.push_back(gtsam.PriorFactorPose3(
+                tag_key, gtsam.Pose3(), gtsam.noiseModel.Constrained.All(6)))
+            init_values.insert(bundle_key, tag_pose)
+            # graph.push_back(
+            #     gtsam.PriorFactorPose3(
+            #         bundle_key, gtsam.Pose3(), gtsam.noiseModel.Constrained.All(6))
+            # )
+
+    # solver
+    params = gtsam.LevenbergMarquardtParams()
+    params.setVerbosityLM("SUMMARY")
+
+    # Optimize
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, init_values, params)
+    result = optimizer.optimize()
+
+    print("world tag pose")
+    # world_T_bundle = result.atPose3(bundle_key)
+    # for i, bundle_T_tag_pose in enumerate(tag_pose_list):
+    #     world_T_tag_pose = world_T_bundle.compose(bundle_T_tag_pose)
+    #     print(np.linalg.norm(world_T_tag_pose.between(
+    #         result.atPose3(gtsam.symbol('t', i))).translation()))
+
+
+def test_pnp_bunde_gtsam():
+    graph = gtsam.NonlinearFactorGraph()
+    init_values = gtsam.Values()
+
+    bundle_key = gtsam.symbol('b', 0)
+    init_values.insert(bundle_key,  gtsam.Pose3())
+
+    camera_key = gtsam.symbol('c', 0)
+    init_values.insert(camera_key, gtsam.Pose3())
+
+    tag_noise = gtsam.noiseModel.Robust.Create(
+        gtsam.noiseModel.mEstimator.Huber.Create(1),
+        # Adjust these values as needed
+        gtsam.noiseModel.Diagonal.Sigmas(
+            np.array([0.1, 0.1, 0.1, 0.2, 0.2, 0.2]))
+    )
+
+    for i, tag_pose in enumerate(camera_T_tag_pose_list):
+        tag_key = gtsam.symbol('t', i)
+        tag_bundle_ikey = gtsam.symbol('w', i)
+        graph.push_back(
+            custom_factor.BundlePoseFactor(
+                bundle_key, tag_key, tag_bundle_ikey, gtsam.noiseModel.Isotropic.Sigma(
+                    6, 0.1)
+            )
+        )
+        init_values.insert(
+            tag_key, gtsam.Pose3()
+        )
+        init_values.insert(
+            tag_bundle_ikey, gtsam.Pose3()
+        )
+
+        graph.push_back(
+            gtsam.BetweenFactorPose3(
+                camera_key, tag_bundle_ikey, tag_pose, tag_noise
+            )
+        )
+        
+        if i ==0:
+            graph.push_back(
+                gtsam.PriorFactorPose3(
+                    tag_key, gtsam.Pose3(), gtsam.noiseModel.Constrained.All(6)
+                )
+            )
+            graph.push_back(
+                gtsam.PriorFactorPose3(
+                    tag_bundle_ikey, gtsam.Pose3(), gtsam.noiseModel.Constrained.All(6)
+                )
+            )
+    
+    # solver
+    params = gtsam.LevenbergMarquardtParams()
+    params.setVerbosityLM("SUMMARY")
+
+    # Optimize
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, init_values, params)
+    result = optimizer.optimize()
+
+    print("world tag pose")
+    world_T_bundle = result.atPose3(bundle_key)
+        
 
 test_tag_bundle_factor()
