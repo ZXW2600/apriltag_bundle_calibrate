@@ -47,5 +47,5 @@ class TagBundle:
             pose = np.array(data)
             self.camera_pose[index]=pose
             
+        self.tag_keys = self.tag_points.keys()
         
-            
