@@ -22,10 +22,8 @@ avr error 0.10711245217531891
 
 ## 安装
 
-### 依赖安装
-
 ```shell
-pip install -r requirment.txt
+pip install -e .
 ```
 
 ## 使用

@@ -27,7 +27,7 @@ Example images and camera calibration results can be downloaded from here [googl
 ### Requirment
 
 ```shell
-pip install -r requirment.txt
+pip install -e .
 ```
 
 ## Usage

@@ -8,6 +8,11 @@ setup(
     author_email='zhaoxinwei74@gmail.com',
     packages=find_packages(),
     install_requires=[
-        # Add your dependencies here
+        "gtsam",
+        "tqdm",
+        "pyyaml",
+        "apriltag",
+        "opencv-python",
+        "matplotlib",
     ]
 )
