@@ -1,6 +1,4 @@
 from functools import partial
-from multiprocessing import Lock
-from pyvis.network import Network
 from tqdm import tqdm
 import yaml
 import numpy as np
@@ -8,7 +6,6 @@ import argparse
 import apriltag
 import os
 import gtsam
-import gtsam_unstable
 import cv2
 import os
 import sys
@@ -34,54 +31,6 @@ class KeyType:
     AID_TAG = "a"
     POINTS = "p"
     BUNDLE = "b"
-
-
-class PointsIndexGenerator:
-    name_list = [
-        "points_id",
-        "key_id",
-        "points_id"
-    ]
-    word_len = [
-        2,
-        8,
-        16
-    ]
-    mask_list = []
-
-    def __init__(self) -> None:
-        self.shift_list = [0]
-        for i in range(1, len(self.word_len)):
-            self.shift_list.append(self.shift_list[i-1]+self.word_len[i-1])
-        for i in range(len(self.word_len)):
-            self.mask_list.append(2**self.word_len[i]-1)
-    # Points Name Rules:
-
-    def get_points_symbol(self, key_note, tag_id, points_id):
-        key_id = ord(key_note)
-        int_list = [points_id, key_id, tag_id]
-        symbol_id = 0
-        for i in range(3):
-            symbol_id |= int_list[i] << self.shift_list[i]
-        return gtsam.symbol(KeyType.POINTS, symbol_id)
-
-    def resolve_points_symbol_id(self, symbol):
-        symbol_index = gtsam.symbolIndex(symbol)
-        int_list = []
-        for i in range(3):
-            int_list.append(
-                (symbol_index >> self.shift_list[i]) & self.mask_list[i])
-        points_id = int_list[0]
-        key_id = int_list[1]
-        tag_id = int_list[2]
-        return tag_id, key_id, points_id
-
-    def get_label(self, symbol):
-        tag_id, key_id, points_id = self.resolve_points_symbol_id(symbol)
-        return f"{key_id:c} tag {tag_id} {points_id} th point"
-
-    def to_string(self, symbol):
-        return f"{gtsam.symbolChr(symbol):c}{gtsam.symbolIndex(symbol)}"
 
 
 class CommandLineParams:
@@ -248,8 +197,6 @@ class PoseGraph:
         self.initial_estimate = gtsam.Values()
         self.optimize_option = gtsam.LevenbergMarquardtParams()
         self.optimize_option.setVerbosityLM("SUMMARY")
-
-        self.point_index_generator = PointsIndexGenerator()
 
         self.bundle_index = 0
         self.camere_index = 0
