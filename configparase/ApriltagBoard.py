@@ -5,7 +5,6 @@ import numpy as np
 class ApriltagBoard:
     def __init__(self):
         self.objPoints = {}
-
         pass
 
     def read_yaml(self, file):

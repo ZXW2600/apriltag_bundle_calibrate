@@ -1,4 +1,3 @@
-from functools import partial
 from tqdm import tqdm
 import yaml
 import numpy as np
@@ -11,7 +10,9 @@ import os
 import sys
 
 import custom_factor
-from concurrent.futures import ProcessPoolExecutor
+
+from utils import KeyType,BundleImageLoader
+from configparase import Camera
 
 ci_build_and_not_headless = False
 try:
@@ -23,14 +24,6 @@ if sys.platform.startswith("linux") and ci_and_not_headless:
     os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 if sys.platform.startswith("linux") and ci_and_not_headless:
     os.environ.pop("QT_QPA_FONTDIR")
-
-
-class KeyType:
-    CAMERA = "x"
-    MASTER_TAG = "t"
-    AID_TAG = "a"
-    POINTS = "p"
-    BUNDLE = "b"
 
 
 class CommandLineParams:
@@ -83,30 +76,6 @@ class CommandLineParams:
                 self.use_aid_tag_config = True
         # last_calib_file = ap.parse_args().extend
 
-
-class Camera:
-    def __init__(self, camera_param_file) -> None:
-        # read camera parameters
-        with open(camera_param_file, 'r') as stream:
-            try:
-                data = yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
-            self.cx = data["cx"]
-            self.cy = data["cy"]
-            self.fx = data["fx"]
-            self.fy = data["fy"]
-            self.distCoeffs = np.array(data["distCoeffs"]).flatten()
-            if self.distCoeffs.shape[0] > 4:
-                self.k1 = self.distCoeffs[0]
-                self.k2 = self.distCoeffs[1]
-                self.p1 = self.distCoeffs[2]
-                self.p2 = self.distCoeffs[3]
-
-            self.cameraMatrix = np.array(
-                [self.fx, 0, self.cx, 0, self.fy, self.cy, 0, 0, 1]).reshape(3, 3)
-        print(f"Camera parameters are loaded from {camera_param_file}"
-              f"\nfx={self.fx}, fy={self.fy}, cx={self.cx}, cy={self.cy}, distCoeffs={self.distCoeffs}")
 
 
 class ApriltagDetector:
@@ -330,36 +299,6 @@ class BundleCalibratePoseGraph(PoseGraph):
             )
         )
 
-
-class ImageLoader:
-    def __init__(self, path) -> None:
-        self.path = path
-        self.images = []
-
-    def load_img(self, folder_path, file_path):
-        if not file_path.endswith(".jpg"):
-            return False, "", None
-        image_path = os.path.join(folder_path, file_path)
-        image = cv2.imread(image_path)
-        return image is not None, file_path.split("/")[-1], image
-
-    def load_bundle(self, folder, files):
-        bundle = []
-        print("reading images...")
-        with ProcessPoolExecutor() as executor:
-            images = list(
-                tqdm(executor.map(partial(self.load_img, folder), files), total=len(files)))
-            for img in images:
-                if img[0]:
-                    bundle.append((img[1], img[2]))
-        return bundle
-
-    def load(self):
-        for folder, _, files in os.walk(self.path):
-            bundle = self.load_bundle(folder, files)
-            self.images.append(bundle)
-
-
 def solve_pnp(obj_points, img_points, camera: Camera):
     ret, rvec, tvec = cv2.solvePnP(
         np.array(obj_points), np.array(img_points), camera.cameraMatrix, camera.distCoeffs)
@@ -373,7 +312,7 @@ def main():
     tag_detector = ApriltagDetector(cmd_params)
     warmup_graph = WarmupPoseGraph()
     bundle_graph = BundleCalibratePoseGraph(camera)
-    image_loader = ImageLoader(cmd_params.folder_path)
+    image_loader = BundleImageLoader(cmd_params.folder_path)
     image_loader.load()
 
     tag_cnt = {

@@ -1,8 +1,8 @@
 
-import custom_factor
+import apriltag_calibrate.custom_factor.bundle_custom_factor as bundle_custom_factor
 import gtsam
 import numpy as np
-from custom_factor import BundlePoseFactor, BundleTagFactor
+from apriltag_calibrate.custom_factor.bundle_custom_factor import BundlePoseFactor, BundleTagFactor
 
 
 def random_rot():
@@ -159,7 +159,7 @@ def test_pnp_factor():
     for i, tag_pose in enumerate(camera_T_tag_pose_list):
         tag_key = gtsam.symbol('t', i)
         graph.push_back(
-            custom_factor.BundleCameraPnPFactor(
+            bundle_custom_factor.BundleCameraPnPFactor(
                 bundle_key, tag_key, camera_key, tag_pose, tag_noise
             )
         )
@@ -210,7 +210,7 @@ def test_pnp_bunde_gtsam():
         tag_key = gtsam.symbol('t', i)
         tag_bundle_ikey = gtsam.symbol('w', i)
         graph.push_back(
-            custom_factor.BundlePoseFactor(
+            bundle_custom_factor.BundlePoseFactor(
                 bundle_key, tag_key, tag_bundle_ikey, gtsam.noiseModel.Isotropic.Sigma(
                     6, 0.1)
             )
