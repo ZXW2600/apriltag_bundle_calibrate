@@ -1,3 +1,4 @@
+from typing import Optional
 from tqdm import tqdm
 import yaml
 import numpy as np
@@ -9,9 +10,9 @@ import cv2
 import os
 import sys
 
-import custom_factor
+import custom_factor as custom_factor
 
-from utils import KeyType,BundleImageLoader
+from utils import KeyType, BundleImageLoader
 from configparase import Camera
 
 ci_build_and_not_headless = False
@@ -75,7 +76,6 @@ class CommandLineParams:
             if self.aid_tag_config is not None:
                 self.use_aid_tag_config = True
         # last_calib_file = ap.parse_args().extend
-
 
 
 class ApriltagDetector:
@@ -178,8 +178,13 @@ class PoseGraph:
         self.result = optimizer.optimize()
         return self.result
 
-    def save_result(self, file_name):
-        save_data = {}
+    def save_result(self, file_name, extra_data: Optional[dict] = None):
+        save_data = {
+            "bundle_pose": {},
+            "tag_pose": {},
+            "camera_pose": {},
+            "extra_data": {}
+        }
 
         for key in self.result.keys():
             chr = gtsam.symbolChr(key)
@@ -187,17 +192,17 @@ class PoseGraph:
             if chr == ord(KeyType.CAMERA):
                 img_pose = self.result.atPose3(gtsam.symbol(
                     KeyType.CAMERA, index)).matrix().tolist()
-                save_data[f"{KeyType.CAMERA}{index}"] = img_pose
+                save_data["camera_pose"][f"{KeyType.CAMERA}{index}"] = img_pose
 
             elif chr == ord(KeyType.MASTER_TAG):
                 tag_pose = self.result.atPose3(gtsam.symbol(
                     KeyType.MASTER_TAG, index)).matrix().tolist()
-                save_data[f"{KeyType.MASTER_TAG}{index}"] = tag_pose
+                save_data["tag_pose"][f"{KeyType.MASTER_TAG}{index}"] = tag_pose
 
             elif chr == ord(KeyType.AID_TAG):
                 tag_pose = self.result.atPose3(gtsam.symbol(
                     KeyType.AID_TAG, index)).matrix().tolist()
-                save_data[f"{KeyType.AID_TAG}{index}"] = tag_pose
+                save_data["tag_pose"][f"{KeyType.AID_TAG}{index}"] = tag_pose
             elif chr == ord(KeyType.POINTS):
                 points = self.result.atPoint3(gtsam.symbol(
                     KeyType.POINTS, index)).tolist()
@@ -205,9 +210,12 @@ class PoseGraph:
             elif chr == ord(KeyType.BUNDLE):
                 bundle_pose = self.result.atPose3(gtsam.symbol(
                     KeyType.BUNDLE, index)).matrix().tolist()
-                save_data[f"{KeyType.BUNDLE}{index}"] = bundle_pose
+                save_data["bundle_pose"][f"{KeyType.BUNDLE}{index}"] = bundle_pose
             else:
                 print(f"Unknown key {chr:02x}")
+
+        if extra_data is not None:
+            save_data["extra_data"].update(extra_data)
 
         with open(file_name, 'w') as file:
             yaml.dump(save_data, file)
@@ -299,6 +307,7 @@ class BundleCalibratePoseGraph(PoseGraph):
             )
         )
 
+
 def solve_pnp(obj_points, img_points, camera: Camera):
     ret, rvec, tvec = cv2.solvePnP(
         np.array(obj_points), np.array(img_points), camera.cameraMatrix, camera.distCoeffs)
@@ -357,10 +366,16 @@ def main():
                 path = os.path.join(cmd_params.draw_path, file)
                 cv2.imwrite(path, img_show)
 
+    # extradata for tag
+    extra_data = {
+        "tag_family": cmd_params.master_tag_family,
+        "tag_size": cmd_params.master_tag_size,
+    }
+
     # solve warmup graph
     warmup_graph.fix_first_tag()
     warmup_result = warmup_graph.solve()
-    warmup_graph.save_result("warmup_result.yaml")
+    warmup_graph.save_result("warmup_result.yaml", extra_data=extra_data)
 
     # solve bundle adjustment graph
     bundle_graph.fix_first_tag()
@@ -370,7 +385,7 @@ def main():
     print(f"find {tag_cnt[KeyType.MASTER_TAG]} master tags")
     print(f"find {tag_cnt[KeyType.AID_TAG]} aid tags")
     # save result
-    bundle_graph.save_result("bundle_result.yaml")
+    bundle_graph.save_result("bundle_result.yaml", extra_data=extra_data)
 
 
 if __name__ == "__main__":

@@ -32,3 +32,30 @@ class BundleImageLoader:
         for folder, _, files in os.walk(self.path):
             bundle = self.load_bundle(folder, files)
             self.images.append(bundle)
+            
+            
+            
+class ImageLoader:
+    def __init__(self, path) -> None:
+        self.path = path
+        self.images = []
+
+    def load_img(self,file,):
+        image_path = os.path.join(self.path, file)
+        image = cv2.imread(image_path)
+        if image is not None:
+            return image
+    
+    def load(self,path=None):
+        if path is not None:
+            self.path = path
+        files = os.listdir(self.path)
+        print("reading images...")
+        with ProcessPoolExecutor() as executor:
+            images = list(
+                tqdm(executor.map(self.load_img, files), total=len(files)))
+
+        for img in images:
+            if img is not None:
+                self.images.append(img)
+        

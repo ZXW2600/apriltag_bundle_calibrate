@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
+from apriltag_calibrate.utils.Tag import getTagPoints
+
 def draw_camera(ax, pose: np.ndarray, focal_len_scaled=0.10, aspect_ratio=0.3, color: str = 'b'):
     vertex_std = np.array([[0, 0, 0, 1],
                            [focal_len_scaled * aspect_ratio, -focal_len_scaled *
@@ -79,19 +81,11 @@ def get_tag_color(tag_id):
 
 
 def draw_tag(ax, pose, tag_size, tag_id, color='r'):
-    tag_size_2 = tag_size / 2.0
-    vertex_std = np.array([[-tag_size_2, -tag_size_2, 0, 1],
-                           [tag_size_2, -tag_size_2, 0, 1],
-                           [tag_size_2, tag_size_2, 0, 1],
-                           [-tag_size_2, tag_size_2, 0, 1]])
 
-    vertex_world = pose@vertex_std.T
-    # print(vertex_std)
-
-    vertex_world = vertex_world.T
+    vertex_world = getTagPoints(pose,tag_size)
     # print(vertex_world)
-    meshes = np.array([[vertex_world[0, :-1], vertex_world[1, :-1],
-                        vertex_world[2, :-1], vertex_world[3, :-1]]])
+    meshes = np.array([[vertex_world[0, ], vertex_world[1, ],
+                        vertex_world[2, ], vertex_world[3, ]]])
     # print(meshes.shape)
 
     ax.add_collection3d(

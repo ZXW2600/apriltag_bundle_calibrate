@@ -3,7 +3,7 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 from visualization import draw_tag, draw_3dpoints, draw_axes, draw_camera
-
+from apriltag_calibrate.utils import KeyType
 vis_camera = True
 vis_master_tag = True
 vis_aid_tag = False
@@ -27,10 +27,11 @@ ap.add_argument("-i", "--input", required=True,
 
 ap.add_argument("-s", "--size", required=False,
                 default=0.015, help="visual size of the tag")
+
 ap.add_argument('-test_cube', action='store_true',
                 help='calculate error for cube dataset')
+
 test_cube = ap.parse_args().test_cube
-tag_size = float(ap.parse_args().size)
 file_path = ap.parse_args().input
 points = []
 tags = []
@@ -40,24 +41,36 @@ with open(file_path, 'r') as stream:
         data = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
+    bundle_data = data["bundle_pose"]
+    tag_data = data["tag_pose"]
+    camera_data = data["camera_pose"]
+    extra_data = data["extra_data"]
+    tag_size = extra_data["tag_size"]
 
-    for tag in data:
+    for tag, data in tag_data.items():
         chr = tag[0]
         index = int(tag[1:])
-        pose = np.array(data[tag])
-        if chr == 't' and vis_master_tag:
+        pose = np.array(data)
+        if chr == KeyType.MASTER_TAG and vis_master_tag:
             points = draw_tag(ax_tag, pose, tag_size, index)
             tags.append((pose, points))
-        elif chr == 'x' and vis_camera:
-            draw_camera(ax, pose, 0.05, 0.2)
-        elif chr == 'a' and vis_aid_tag:
+
+        elif chr == KeyType.AID_TAG and vis_aid_tag:
             draw_tag(ax_tag, pose, tag_size, index)
-        elif chr == 'p' and vis_points:
-            pose.reshape(3)
-            draw_3dpoints(ax, pose)
-            points.append(pose)
-        elif chr == "b":
+
+    for bundle, data in bundle_data.items():
+        chr = bundle[0]
+        index = int(bundle[1:])
+        pose = np.array(data)
+        if chr == KeyType.BUNDLE:
             draw_axes(ax, pose, 0.1)
+
+    for camera, data in camera_data.items():
+        chr = camera[0]
+        index = int(camera[1:])
+        pose = np.array(data)
+        if chr == KeyType.CAMERA and vis_camera:
+            draw_camera(ax, pose, 0.1)
 
 if test_plane:
     # fit plane
