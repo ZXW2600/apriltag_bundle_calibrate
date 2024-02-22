@@ -56,12 +56,12 @@ def draw_axes(ax, pose, size: float = 0.1, line_width=2):
         np.array([0, 0, -size, 1]),
     ]
     world_T_end_points = (pose@np.array(axes_T_end_points).T).T
-    print(world_T_end_points)
+    # print(world_T_end_points)
     color = ["r", "g", "b"]
     for i in range(0, 3, 1):
         start = world_T_end_points[i*2, :3]
         end = world_T_end_points[i*2+1, :3]
-        print(start, end)
+        # print(start, end)
         ax.add_collection3d(
             Line3DCollection([[start, end]], facecolors=color, linewidths=line_width, edgecolors=color[i], alpha=0.35))
 
@@ -224,7 +224,7 @@ if test_cube:
     group_vec = []
     for group_id, group in enumerate(pose_group):
         avr_vec = []
-        print("_group start_______")
+        # print("_group start_______")
         for pose, points, ref_vec in group:
             R = pose[:3, :3]
             pose_vec: np.ndarray = R@np.array([0, 0, 1]).T
@@ -232,7 +232,7 @@ if test_cube:
             if d < 0:
                 pose_vec = -pose_vec
 
-            print(f"vec {pose_vec.round(2)} {d:2f}")
+            # print(f"vec {pose_vec.round(2)} {d:2f}")
             draw_tag(ax_cube, pose, tag_size, group_id)
             avr_vec.append(pose_vec)
         group_vec.append(np.mean(avr_vec, axis=0))
