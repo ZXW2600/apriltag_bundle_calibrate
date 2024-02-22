@@ -80,7 +80,7 @@ vis_master_tag = True
 vis_aid_tag = False
 vis_points = True
 test_plane = False
-test_cube = True
+
 
 if test_plane:
     vis_points = True
@@ -124,7 +124,9 @@ ap.add_argument("-i", "--input", required=True,
                 help="path to the bundle calibrate file ")
 
 ap.add_argument("-s", "--size", required=False,
-                default=0.015, help="size of the tag")
+                default=0.015, help="visual size of the tag")
+ap.add_argument('-test_cube', action='store_true',help='calculate error for cube dataset')
+test_cube = ap.parse_args().test_cube
 tag_size = float(ap.parse_args().size)
 file_path = ap.parse_args().input
 points = []

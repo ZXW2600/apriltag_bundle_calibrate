@@ -104,11 +104,9 @@ def bundle_prior_camera_func(camera_T_body: gtsam.Pose3, this: gtsam.CustomFacto
     )
 
     J_error_wrt_camera_T_body_predict = GtsamMatrix(6, 6)
-    J_error_wrt_camera_T_body = GtsamMatrix(6, 6)
     error = camera_T_body_predicted.localCoordinates(
         camera_T_body,
-        J_error_wrt_camera_T_body_predict,
-        J_error_wrt_camera_T_body)
+        J_error_wrt_camera_T_body_predict)
 
     if H is not None:
         # error wrt world_T_bundle_key

@@ -1,0 +1,6 @@
+gtsam
+tqdm
+pyyaml
+apriltag
+opencv-python
+matplotlib

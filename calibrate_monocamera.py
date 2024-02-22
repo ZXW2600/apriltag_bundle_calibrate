@@ -1,4 +1,3 @@
-from moms_apriltag import ApriltagBoard
 import cv2
 import numpy as np
 import argparse
