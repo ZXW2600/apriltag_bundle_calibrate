@@ -1,6 +1,6 @@
-[中文文档](./readme_cn.md)
-
 # Apriltag Tag Bundle Calibration Tool
+
+[中文文档](./readme_cn.md)
 
 This toolkit uses gtsam to calibrate Tag Bundles and recover the relative poses of multiple tags from a series of images.
 
