@@ -10,7 +10,10 @@ from tqdm import tqdm
 from apriltag_calibrate.utils.ImageLoader import ImageLoader
 from apriltag_calibrate.configparase import TagBundle, Camera
 from apriltag_calibrate.utils.TagPnp import TagPnP
-from apriltag_calibrate.visualization import draw_axes,draw_camera
+from apriltag_calibrate.visualization import draw_axes, draw_camera
+from apriltag_calibrate.utils.Geometery import Rtvec2HomogeousT
+
+
 # get image path from command line
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True,
@@ -54,24 +57,22 @@ ax = figure.add_subplot(111, projection='3d')
 figure_2 = plt.figure()
 ax_2 = figure_2.add_subplot(111, projection='3d')
 
-draw_camera(ax,np.eye(4))
-draw_axes(ax_2,np.eye(4),0.02)
+draw_camera(ax, np.eye(4))
+draw_axes(ax_2, np.eye(4), 0.02)
 
 print("processing images")
 for img in tqdm(imageset.images):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     detections = detector.detect(gray)
-    
-    pnp=TagPnP()
+
+    pnp = TagPnP()
     pnp.add_tag(detections, bundle)
     ret, rvecs, tvecs = pnp.solve(camera)
-    pose=np.eye(4)
-    pose[:3,:3]=cv2.Rodrigues(rvecs)[0]
-    pose[:3,3]=tvecs.T
-    
-    pose_inv=np.linalg.inv(pose)
-    
-    draw_axes(ax,pose,0.02)
-    draw_camera(ax_2,pose_inv,0.05,0.2)
+
+    pose = Rtvec2HomogeousT(rvecs, tvecs)
+    pose_inv = np.linalg.inv(pose)
+
+    draw_axes(ax, pose, 0.02)
+    draw_camera(ax_2, pose_inv, 0.05, 0.2)
 
 plt.show()

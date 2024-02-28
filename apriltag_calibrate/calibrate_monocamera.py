@@ -6,7 +6,7 @@ import os
 import apriltag
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
-from utils import ApriltagBoard
+from apriltag_calibrate.configparase import ApriltagBoard
 
 # get image path from command line
 ap = argparse.ArgumentParser()

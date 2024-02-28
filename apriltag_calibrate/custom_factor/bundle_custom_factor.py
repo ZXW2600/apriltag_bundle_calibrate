@@ -129,30 +129,6 @@ def BundleCameraPnPFactor(
     return gtsam.CustomFactor(keys=keys, noiseModel=noise_model, errorFunction=partial(bundle_prior_camera_func, camera_T_body_pose))
 
 
-def axis_angle_error(this: gtsam.CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
-
-    axis_pose_key = this.keys()[0]
-    rotate_angle_key = this.keys()[1]
-    pose_key = this.keys()[2]
-    rotated_pose_key = this.keys()[3]
-
-    axis_pose = v.atPose3(axis_pose_key)
-    rotate_angle = v.atDouble(rotate_angle_key)
-    pose = v.atPose3(pose_key)
-    rotated_pose = v.atPose3(rotated_pose_key)
-
-    # TODO: implement the error function
-    error = 0
-    if H is not None:
-        H[0] = np.eye(3)
-    return error  # 1-d numpy array
-
-
-def AxisAngleRotateFactor(axis_pose_key: int, rotate_angle_key: int, pose_key: int, rotated_pose_key: int, noise_model: gtsam.noiseModel.Gaussian):
-    keys = [axis_pose_key, rotate_angle_key, pose_key, rotated_pose_key]
-    return gtsam.CustomFactor(noise_model, keys, axis_angle_error)
-
-
 def tag_projection_error(corners: list[np.ndarray], K: gtsam.Cal3DS2, tag_size: float, this: gtsam.CustomFactor, v: gtsam.Values, H: List[np.ndarray]):
     world_T_camera_pose_key = this.keys()[0]
     world_T_tag_pose_key = this.keys()[1]
@@ -370,6 +346,7 @@ def bundle_projection_error_i(pt_index: int, corners: list[np.ndarray], K: gtsam
             Dpoint=J_corner_wrt_world_T_obj_point,
             Dcal=J_corner_wrt_camera_param)
         errors = corner_predicted - tag_uv_point
+
     except:
         errors = np.array([1, 1])*2*K.fx()
 
